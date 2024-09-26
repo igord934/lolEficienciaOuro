@@ -22,7 +22,7 @@
         label {
             font-weight: 500;
         }
-        input[type="number"] {
+        input[type="number"], input[type="text"] {
             width: 100%;
             padding: 8px;
             margin-top: 5px;
@@ -53,6 +53,12 @@
         }
         .submit-btn:hover {
             background-color: #0056b3;
+        }
+        .comparison-section, .save-section {
+            margin-top: 30px;
+        }
+        .save-section {
+            display: none; /* Inicialmente oculto */
         }
         @media (min-width: 768px) {
             .form-row {
@@ -170,6 +176,31 @@
     
     <div class="result" id="efficiencyResult"></div>
 
+    <div class="save-section form-section">
+        <h2>Salvar Item</h2>
+        <label for="itemName">Nome do Item:</label>
+        <input type="text" id="itemName" placeholder="Digite o nome do item">
+        <button id="saveItemBtn" class="submit-btn">Salvar Item</button>
+    </div>
+
+    <div class="comparison-section form-section">
+        <h2>Comparar Itens</h2>
+        <div class="form-row">
+            <div class="col-md-6">
+                <label for="item1">Item 1:</label>
+                <select id="item1" class="form-control"></select>
+            </div>
+            <div class="col-md-6">
+                <label for="item2">Item 2:</label>
+                <select id="item2" class="form-control"></select>
+            </div>
+        </div>
+        <button id="compareBtn" class="submit-btn">Comparar Itens</button>
+        <div class="result" id="comparisonResult"></div>
+    </div>
+
+    <button id="exportJsonBtn" class="submit-btn">Exportar Dados como JSON</button>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -193,9 +224,12 @@
             percentMs: 80
         };
 
+        let currentEfficiency = null;
+        let savedItems = JSON.parse(localStorage.getItem('items')) || {};
+
         document.getElementById('efficiencyForm').addEventListener('submit', function (event) {
             event.preventDefault();
-            
+
             const itemCost = parseFloat(document.getElementById('itemCost').value);
             const ad = parseFloat(document.getElementById('ad').value) || 0;
             const ap = parseFloat(document.getElementById('ap').value) || 0;
@@ -235,10 +269,78 @@
                 (onHitDamage * efficiencyValues.onHitDamage) + 
                 (percentMs * efficiencyValues.percentMs);
 
-            const efficiency = (totalValue / itemCost) * 100;
+            currentEfficiency = (totalValue / itemCost) * 100;
 
-            document.getElementById('efficiencyResult').innerText = `Eficiência: ${efficiency.toFixed(2)}% | Valor: ${totalValue}g`;
+            document.getElementById('efficiencyResult').innerText = `Eficiência Calculada: ${currentEfficiency.toFixed(2)}%`;
+
+            // Exibir a seção para salvar o item
+            document.querySelector('.save-section').style.display = 'block';
         });
+
+        document.getElementById('saveItemBtn').addEventListener('click', function () {
+            const itemName = document.getElementById('itemName').value;
+
+            if (itemName && currentEfficiency !== null) {
+                savedItems[itemName] = currentEfficiency;
+                localStorage.setItem('items', JSON.stringify(savedItems));
+                updateItemSelects();
+                document.querySelector('.save-section').style.display = 'none';
+                document.getElementById('efficiencyResult').innerText = `Item ${itemName} salvo com sucesso!`;
+            } else {
+                alert("Por favor, insira um nome para o item.");
+            }
+        });
+
+        function updateItemSelects() {
+            const item1Select = document.getElementById('item1');
+            const item2Select = document.getElementById('item2');
+            item1Select.innerHTML = '';
+            item2Select.innerHTML = '';
+
+            for (const item in savedItems) {
+                const option1 = document.createElement('option');
+                const option2 = document.createElement('option');
+                option1.value = item;
+                option2.value = item;
+                option1.textContent = item;
+                option2.textContent = item;
+                item1Select.appendChild(option1);
+                item2Select.appendChild(option2);
+            }
+        }
+
+        document.getElementById('compareBtn').addEventListener('click', function () {
+            const item1 = document.getElementById('item1').value;
+            const item2 = document.getElementById('item2').value;
+
+            if (item1 && item2 && savedItems[item1] && savedItems[item2]) {
+                const efficiency1 = savedItems[item1];
+                const efficiency2 = savedItems[item2];
+                const difference = efficiency1 - efficiency2;
+
+                document.getElementById('comparisonResult').innerText = `Diferença entre ${item1} e ${item2}: ${difference.toFixed(2)}%`;
+            } else {
+                document.getElementById('comparisonResult').innerText = 'Selecione dois itens válidos para comparação.';
+            }
+        });
+
+        // Função para exportar dados como arquivo JSON
+        document.getElementById('exportJsonBtn').addEventListener('click', function () {
+            const dataStr = JSON.stringify(savedItems, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            // Cria um link temporário para download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'items.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Inicializa os itens ao carregar a página
+        updateItemSelects();
     </script>
 </body>
 </html>
